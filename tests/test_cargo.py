@@ -147,9 +147,6 @@ def test_installed_dependencies_come_from_the_lock(tmp_path: Path):
     assert manager.installed_dependencies() == {
         Dependency(name="rand", version="=0.8.5")
     }
-    assert manager.is_usable(Dependency(name="rand", version=""))
-    assert manager.is_usable(Dependency(name="x", version=""))
-    assert not manager.is_usable(Dependency(name="absent", version=""))
 
 
 def test_version_order():
@@ -203,7 +200,6 @@ def test_build_fetches_dependencies(tmp_path: Path):
 
     assert result.success, result.errors
     assert "RUN cargo fetch" in result.dockerfile.dependencies_installation
-    assert rust.install_project().success
 
 
 def test_workspace_member_dot_is_the_root(tmp_path: Path):
@@ -278,7 +274,7 @@ def run_step(manager: Cargo, step: str) -> AccraResult:
     return {
         "pre": manager.pre_dependencies_installation,
         "deps": manager.dependencies_installation,
-        "project": manager.install_project,
+        "project": manager.post_dependencies_installation,
     }[step]()
 
 
@@ -324,7 +320,6 @@ def parts(tmp_path: Path, monkeypatch, version: str) -> list[Dockerfile]:
         manager.pre_dependencies_installation(),
         manager.dependencies_installation(),
         manager.post_dependencies_installation(),
-        manager.install_project(),
     ]
     assert all(r.success for r in results)
     return [r.dockerfile for r in results]
@@ -339,7 +334,7 @@ def toolchain_line(version: str) -> str:
 
 @pytest.mark.parametrize("version", VERSIONS)
 def test_dockerfile_parts(tmp_path: Path, monkeypatch, version: str):
-    pre, deps, post, built = parts(tmp_path, monkeypatch, version)
+    pre, deps, post = parts(tmp_path, monkeypatch, version)
     steps = [str(s) for s in pre.pre_dependencies_installation]
 
     # one path for every version: on a bare Debian base the pre steps install
@@ -354,12 +349,11 @@ def test_dockerfile_parts(tmp_path: Path, monkeypatch, version: str):
     assert steps[4] == toolchain_line(version)
     assert len(steps) == 5
     assert "RUN cargo fetch" in deps.dependencies_installation
-    assert "RUN cargo build --release" in built.post_dependencies_installation
-    for part in (pre, deps, post, built):
+    assert "RUN cargo build --release" in post.post_dependencies_installation
+    for part in (pre, deps, post):
         for step in part.project_steps():
             assert not step.startswith(FORBIDDEN)
     assert any("chown" in s for s in post.post_dependencies_installation)
-    assert any("chown" in s for s in built.post_dependencies_installation)
 
 
 def test_toolchain_version_is_quoted(tmp_path: Path, monkeypatch):
@@ -372,11 +366,11 @@ def test_toolchain_version_is_quoted(tmp_path: Path, monkeypatch):
 
 @pytest.mark.parametrize("version", VERSIONS)
 def test_composition_order(tmp_path: Path, monkeypatch, version: str):
-    pre, deps, post, built = parts(tmp_path, monkeypatch, version)
+    pre, deps, post = parts(tmp_path, monkeypatch, version)
 
     # each part's pre, dependency and post steps, in the caller's order
     lines: list[str] = []
-    for part in (pre, deps, post, built):
+    for part in (pre, deps, post):
         lines += part.project_steps()
     fetch = lines.index("RUN cargo fetch")
     build = lines.index("RUN cargo build --release")

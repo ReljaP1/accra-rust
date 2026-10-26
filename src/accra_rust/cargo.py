@@ -133,21 +133,15 @@ class Cargo(EnvironmentManager):
 
     @override
     def post_dependencies_installation(self) -> AccraResult:
-        # the image's steps run as root; the user that runs the project owns cargo
-        return AccraResult(
-            dockerfile=Dockerfile(post_dependencies_installation=[DOCKER_CHOWN_CARGO])
-        )
-
-    # -- the project ------------------------------------------------
-
-    @override
-    def has_project_install(self) -> bool:
-        return bool(self.present_manifests)
-
-    @override
-    def install_project(self) -> AccraResult:
-        """Compiles the project in release mode; a project that does not
-        compile leaves the fetched dependencies as they are."""
+        """Compiles the project in release mode. A Rust project cannot run
+        from its sources, so one that does not compile fails the build. The
+        image's steps run as root; the user that runs the project owns cargo."""
+        if not self.present_manifests:
+            return AccraResult(
+                dockerfile=Dockerfile(
+                    post_dependencies_installation=[DOCKER_CHOWN_CARGO]
+                )
+            )
         built = self._run(
             ["cargo", "build", "--release"],
             AccraBuildError,
@@ -165,6 +159,8 @@ class Cargo(EnvironmentManager):
             )
         )
 
+    # -- the project ------------------------------------------------
+
     @override
     def project_names(self) -> set[str]:
         """The crates of the project, a workspace's members included."""
@@ -173,18 +169,6 @@ class Cargo(EnvironmentManager):
             if isinstance(manifest, Cargo_toml):
                 names |= manifest.crate_names()
         return names
-
-    @override
-    def is_usable(self, dependency: Dependency) -> bool | AccraError:
-        """Whether the project's build can use the crate: one of the project's
-        own, or one `Cargo.lock` resolved and `cargo fetch` downloaded."""
-        name = dependency.name.strip()
-        if name in self.project_names():
-            return True
-        installed = self.installed_dependencies()
-        if isinstance(installed, AccraError):
-            return installed
-        return name in {d.name for d in installed}
 
     @override
     def installed_dependencies(self) -> set[Dependency] | AccraError:

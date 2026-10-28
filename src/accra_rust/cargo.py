@@ -133,9 +133,12 @@ class Cargo(EnvironmentManager):
 
     @override
     def post_dependencies_installation(self) -> AccraResult:
-        """Compiles the project in release mode. A Rust project cannot run
-        from its sources, so one that does not compile fails the build. The
-        image's steps run as root; the user that runs the project owns cargo."""
+        """Compiles the project with a debug build (no optimisation: far faster
+        than `--release`, and it fails for the same reasons; switch to
+        `--release` when analysers run the compiled program). A Rust project
+        cannot run from its sources, so one that does not compile fails the
+        build. The image's steps run as root; the user that runs the project
+        owns cargo."""
         if not self.present_manifests:
             return AccraResult(
                 dockerfile=Dockerfile(
@@ -143,9 +146,9 @@ class Cargo(EnvironmentManager):
                 )
             )
         built = self._run(
-            ["cargo", "build", "--release"],
+            ["cargo", "build"],
             AccraBuildError,
-            "cargo build --release",
+            "cargo build",
         )
         if isinstance(built, AccraError):
             return AccraResult(errors=[built], success=False)
@@ -153,7 +156,7 @@ class Cargo(EnvironmentManager):
         return AccraResult(
             dockerfile=Dockerfile(
                 post_dependencies_installation=[
-                    DockerfileInstruction("RUN cargo build --release"),
+                    DockerfileInstruction("RUN cargo build"),
                     DOCKER_CHOWN_CARGO,
                 ]
             )

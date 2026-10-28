@@ -349,7 +349,7 @@ def test_dockerfile_parts(tmp_path: Path, monkeypatch, version: str):
     assert steps[4] == toolchain_line(version)
     assert len(steps) == 5
     assert "RUN cargo fetch" in deps.dependencies_installation
-    assert "RUN cargo build --release" in post.post_dependencies_installation
+    assert "RUN cargo build" in post.post_dependencies_installation
     for part in (pre, deps, post):
         for step in part.project_steps():
             assert not step.startswith(FORBIDDEN)
@@ -373,7 +373,7 @@ def test_composition_order(tmp_path: Path, monkeypatch, version: str):
     for part in (pre, deps, post):
         lines += part.project_steps()
     fetch = lines.index("RUN cargo fetch")
-    build = lines.index("RUN cargo build --release")
+    build = lines.index("RUN cargo build")
 
     assert any(line.endswith(f"&& rustup default {version}") for line in lines[:fetch])
     assert any("pkg-config" in line for line in lines[:fetch])

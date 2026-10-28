@@ -7,9 +7,19 @@ from accra_language import DockerfileInstruction
 _RUSTUP_HOME = "/usr/local/rustup"
 _CARGO_HOME = "/usr/local/cargo"
 
-# What cargo builds need beyond the compiler: a C and C++ toolchain, pkg-config
-# and OpenSSL's headers.
-BUILD_PACKAGES = ("build-essential", "pkg-config", "libssl-dev", "ca-certificates")
+# What cargo builds need beyond the compiler: a C and C++ toolchain, pkg-config,
+# OpenSSL's headers, and the tools build scripts of common crates call: cmake
+# (grpcio-sys, TiKV), clang with libclang (bindgen) and protoc (prost, tonic).
+BUILD_PACKAGES = (
+    "build-essential",
+    "pkg-config",
+    "libssl-dev",
+    "ca-certificates",
+    "cmake",
+    "clang",
+    "libclang-dev",
+    "protobuf-compiler",
+)
 
 DOCKER_CHOWN_CARGO = DockerfileInstruction(
     f"RUN chown -R appuser:appuser {_CARGO_HOME}"

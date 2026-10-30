@@ -5,7 +5,7 @@ requires-python = ">=3.12"
 [[package]]
 name = "accra-language"
 version = "0.1.0"
-source = { git = "https://github.com/rumenmitov/accra-language#85e4f877c7b200fcd9b72ad7d58950b556e1045e" }
+source = { git = "https://github.com/rumenmitov/accra-language#5dbd2e10477943e8979488db6f76ea40be863cad" }
 dependencies = [
     { name = "pydantic" },
 ]
